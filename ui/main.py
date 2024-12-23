@@ -1,8 +1,8 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QTableWidgetItem, \
-    QTableWidget, QLineEdit, QLabel, QDialog, QComboBox, QRadioButton, QLayout, QPushButton
+    QTableWidget, QLineEdit, QLabel, QDialog, QComboBox, QRadioButton, QLayout, QPushButton, QScrollArea
 from PyQt5 import QtCore, uic
-from PyQt5.QtGui import QIcon, QPixmap, QTransform, QFont
+from PyQt5.QtGui import QIcon, QPixmap, QTransform, QFont, QResizeEvent
 from PyQt5.QtCore import Qt
 from ui.axios_data_main import *
 from datetime import datetime, timedelta, date
@@ -20,6 +20,7 @@ class MainWindow(QMainWindow):
 
         self.current_date_raw = datetime.now()
         self.update_date_text()
+        #!!! - так обозначаются все новые правки
 
         # настройка меню бара
         self.menu_bar_export_to_excel_for_this_day.triggered.connect(self.export_to_excel_for_this_day)
@@ -42,6 +43,7 @@ class MainWindow(QMainWindow):
         self.previous_day_button.clicked.connect(self.previous_day_button_clicked)
 
         # настройка расположения кнопок
+
         h_layout = QHBoxLayout()
         h_layout.addWidget(self.previous_day_button, alignment=Qt.AlignLeft)
         h_layout.addStretch()
@@ -69,7 +71,7 @@ class MainWindow(QMainWindow):
                 border: 1px solid black; 
             }
         """)
-        self.font = QFont("Times New Roman ", 16)
+        self.font = QFont("Times New Roman ", self.height() // 50)
 
         for row in range(9):
             self.table_lessons_time.setRowHeight(row, 90)
@@ -87,19 +89,18 @@ class MainWindow(QMainWindow):
         self.table_schedule = QTableWidget(self)
         self.table_schedule.setRowCount(9)
         self.table_schedule.setColumnCount(len(CLASSES_LIST))
-        self.table_schedule.setGeometry(200, 40, 1200, 1000)
         self.table_schedule.setFrameStyle(QTableWidget.NoFrame)
         self.table_schedule.verticalHeader().setVisible(False)
         self.table_schedule.setHorizontalHeaderLabels(CLASSES_LIST)
 
-        for row in range(9):
-            self.table_schedule.setRowHeight(row, 90)
 
         self.table_schedule.setStyleSheet("""
             QTableWidget::item {
                 border: 1px solid black;  
             }
         """)
+
+        
 
         self.set_lessons_main_table()
         self.table_schedule.cellClicked.connect(self.on_cell_clicked_table_schedule)
@@ -130,15 +131,39 @@ class MainWindow(QMainWindow):
         y_position = self.height() - self.date_label.height() - 5
         self.date_label.move(x_position, y_position)
 
-        row_height = self.height() // 10 if self.height() // 10 < 90 else 90
-        y_position = int(self.height() * 0.065)
-        self.table_lessons_time.setGeometry(70, y_position, 200, self.height() - 60)
-        for row in range(9):
+        row_height = self.height() // 11 if self.height() // 11 < 90 else 90
+        y_position = 30
+        height_of_font = self.height() // 50 if self.height() // 50 < 16 else 16
+        self.font = QFont("Times New Roman ", height_of_font)
+        for row in range(self.table_lessons_time.rowCount()):
             self.table_lessons_time.setRowHeight(row, row_height)
+            item = self.table_lessons_time.item(row, 0) 
+            if item:
+                item.setFont(self.font)
+                self.table_lessons_time.setGeometry(70, y_position, 200, row_height * 9)
+         
+        vertical_scrollbar_height = self.table_schedule.verticalScrollBar().height()
+        header_height = self.table_schedule.horizontalHeader().height()
 
-        self.table_schedule.setGeometry(200, y_position - 20, self.width() - 270, self.height() - 20)
+
+        self.table_schedule.setGeometry(200, y_position - header_height, self.width() - 270, row_height * 9 + header_height + vertical_scrollbar_height)
         for row in range(9):
             self.table_schedule.setRowHeight(row, row_height)
+            for col in range(self.table_schedule.columnCount()):
+                item = self.table_schedule.item(row, col)
+                if item:  
+                    item.setFont(self.font)
+
+
+    def resizeEvent_manual(self):
+        height_of_font = self.height() // 50 if self.height() // 50 < 16 else 16
+        self.font = QFont("Times New Roman ", height_of_font)
+        for row in range(9):
+            for col in range(self.table_schedule.columnCount()):
+                item = self.table_schedule.item(row, col)
+                if item:  
+                    item.setFont(self.font)
+
 
     # функкции для меню бара
 
@@ -196,6 +221,7 @@ class MainWindow(QMainWindow):
                 item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
                 item.setTextAlignment(Qt.AlignCenter)
                 self.table_schedule.setItem(row, col, item)
+        self.resizeEvent_manual() 
 
     def on_cell_clicked_table_schedule(self, row, column):
         self.table_schedule.setCurrentCell(row, column)
