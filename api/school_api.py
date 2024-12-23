@@ -23,16 +23,16 @@ def PrepareInformationForMainPage(date):
             schedule[class_name][default[2] - 1] = {"group_lesson": False, "places": place, "teacher": teacher,
                                                 "title_lesson": subject, "id": default[0], "type": "default"}
     for default in changeSchedule:
-        class_name = ClassGetById(default[5])[1]
-        place = ClassRoomGetById(default[4])[2]
-        teacher = TeacherGetById(default[3])[1]
+        class_name = ClassGetById(default[4])[1]
+        place = ClassRoomGetById(default[3])[2]
+        teacher = TeacherGetById(default[2])[1]
         subject = SubjectGetById(default[6])[1]
         if class_name in schedule:
-            schedule[class_name][default[2] - 1] = {"group_lesson": False, "places": place, "teacher": teacher,
+            schedule[class_name][default[1] - 1] = {"group_lesson": False, "places": place, "teacher": teacher,
                                                 "title_lesson": subject, "id": default[0], "type": "change"}
         else:
             schedule[class_name] = dict()
-            schedule[class_name][default[2] - 1] = {"group_lesson": False, "places": place, "teacher": teacher,
+            schedule[class_name][default[1] - 1] = {"group_lesson": False, "places": place, "teacher": teacher,
                                                 "title_lesson": subject, "id": default[0], "type": "change"}
     return schedule
 
@@ -49,11 +49,11 @@ def ClassGetIdByName(name: str):
     finally:
         connection.close()
 
-def DefaultScheduleGetByWeekdayNumberClass(number: int, class_id: int):
+def DefaultScheduleGetByWeekdayNumberClass(weekday:int, number: int, class_id: int):
     connection = sqlite3.connect(path_to_db)
     cursor = connection.cursor()
     try:
-        cursor.execute("SELECT id FROM changes_in_schedule WHERE number_of_lesson = ? and class_id = ? and date = ?", (weekday, number, class_id))
+        cursor.execute("SELECT id FROM default_schedule WHERE number_of_lesson = ? and class_id = ? and weekday = ?", (number, class_id, weekday))
         names = [row[0] for row in cursor.fetchall()]  # Извлекаем все строки и берем первый элемент каждой строки
         return names[0]
     except Exception as e:
@@ -66,7 +66,8 @@ def ChangeInScheduleGetByNumberClassDate(number: int, class_id: int, date_of_les
     connection = sqlite3.connect(path_to_db)
     cursor = connection.cursor()
     try:
-        cursor.execute("SELECT id FROM default_schedule WHERE weekday = ? and number_of_lesson = ? and class_id = ?", (number, class_id, date_of_lesson))
+        date_lesson_str = date_of_lesson.strftime('%Y-%m-%d')
+        cursor.execute("SELECT id FROM changes_in_schedule WHERE DATE(date_lesson) = ? and number_of_lesson = ? and class_id = ?", (date_lesson_str, number, class_id))
         names = [row[0] for row in cursor.fetchall()]  # Извлекаем все строки и берем первый элемент каждой строки
         return names[0]
     except Exception as e:
@@ -499,11 +500,15 @@ def ChangesInScheduleGetLessonById(id: int) -> list:
     finally:
         connection.close()
 
+
 def ChangesInScheduleGetLessonByDate(date_lesson: date) -> list:
     connection = sqlite3.connect(path_to_db)
     cursor = connection.cursor()
     try:
-        cursor.execute("SELECT * FROM changes_in_schedule WHERE date_lesson = ?", (date_lesson,))
+        # Преобразуем date_lesson в строку формата 'YYYY-MM-DD'
+        date_lesson_str = date_lesson.strftime('%Y-%m-%d')
+
+        cursor.execute("SELECT * FROM changes_in_schedule WHERE DATE(date_lesson) = ?", (date_lesson_str,))
         lessons = cursor.fetchall()
         return lessons
     except Exception as e:
@@ -514,7 +519,7 @@ def ChangesInScheduleGetLessonByDate(date_lesson: date) -> list:
 
 
 def ChangeInScheduleAdd(number_of_lesson: int, teacher_id: int, classroom_id: int, class_id: int, subject_id: int,
-                        lesson_date: date) -> int:
+                        lesson_date: date, mini_group, id_in_default: int) -> int:
     if (
             not number_of_lesson or not teacher_id or not classroom_id or not class_id or not subject_id or not lesson_date):
         return -1
@@ -529,8 +534,8 @@ def ChangeInScheduleAdd(number_of_lesson: int, teacher_id: int, classroom_id: in
                            "class_id, "
                            "discipline_id, "
                            "date_lesson, "
-                           "date_change, "
-                           "is_created_by_user)"
+                           "mini_group, "
+                           "id_in_default_schedule)"
                            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                            (
                                number_of_lesson,
@@ -539,8 +544,9 @@ def ChangeInScheduleAdd(number_of_lesson: int, teacher_id: int, classroom_id: in
                                class_id,
                                subject_id,
                                lesson_date,
-                               datetime.now(),
-                               1))
+                               mini_group,
+                               id_in_default,
+                               ))
             connection.commit()
             last_inserted_id = cursor.lastrowid
             return last_inserted_id
@@ -568,9 +574,9 @@ def ChangeInScheduleChangeById(id: int,
     if class_id is None:
         class_id = lesson[4]
     if subject_id is None:
-        subject_id = lesson[5]
+        subject_id = lesson[6]
     if lesson_date is None:
-        lesson_date = lesson[6]
+        lesson_date = lesson[7]
 
     connection = sqlite3.connect(path_to_db)
     cursor = connection.cursor()
@@ -582,9 +588,7 @@ def ChangeInScheduleChangeById(id: int,
                        "room_id = ?, "
                        "class_id = ?, "
                        "discipline_id = ?, "
-                       "date_lesson = ?, "
-                       "date_change = ?, "
-                       "is_created_by_user = ? WHERE id = ?",
+                       "date_lesson = ? WHERE id = ?",
                        (
                            number_of_lesson,
                            teacher_id,
@@ -592,9 +596,7 @@ def ChangeInScheduleChangeById(id: int,
                            class_id,
                            subject_id,
                            lesson_date,
-                           datetime.now(),
-                           1,
-                           id
+                           id,
                        ))
         connection.commit()
         return True
