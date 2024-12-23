@@ -22,8 +22,18 @@ SUBJECTS_LIST = SubjectGetAll()
 
 TEACHERS = TeacherGetAll()
 
-TEACHERS_LIST = TEACHERS
-ROOMS_LIST = ["232", "233", "234", "235"]
+SUBJECTS_AND_TEACHERS = {
+    SUBJECTS_LIST[key]:[
+            TEACHERS[key % len(TEACHERS)],
+            TEACHERS[(key + 1) % len(TEACHERS)]
+        ] for key in range(len(SUBJECTS_LIST))
+}
+
+
+
+
+TEACHERS_LIST = TEACHERS # зачем??
+ROOMS_LIST = ["232", "233", "234", "235"] # зачем??
 
 PLACES = ClassRoomGetAll()
 PLACES.append("")
