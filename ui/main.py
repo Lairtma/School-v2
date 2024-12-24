@@ -2,7 +2,7 @@ import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QTableWidgetItem, \
     QTableWidget, QLineEdit, QLabel, QDialog, QComboBox, QRadioButton, QLayout, QPushButton, QScrollArea
 from PyQt5 import QtCore, uic
-from PyQt5.QtGui import QIcon, QPixmap, QTransform, QFont, QResizeEvent
+from PyQt5.QtGui import QIcon, QPixmap, QTransform, QFont, QBrush, QColor
 from PyQt5.QtCore import Qt
 from ui.axios_data_main import *
 from datetime import datetime, timedelta, date
@@ -19,6 +19,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
 
         self.current_date_raw = datetime.now()
+        print(self.current_date_raw)
         self.update_date_text()
         #!!! - так обозначаются все новые правки
 
@@ -71,13 +72,17 @@ class MainWindow(QMainWindow):
                 border: 1px solid black; 
             }
         """)
-        self.font = QFont("Times New Roman ", self.height() // 50)
+        self.font = QFont("Times New Roman ", self.height() // 70)
 
         for row in range(9):
             self.table_lessons_time.setRowHeight(row, 90)
 
         for row, text in enumerate(LESSONS_NUM_TIME):
-            item = QTableWidgetItem(text)
+            some_places = self.free_places_for_num_lesson(self.current_date, row)
+            num_of_some_places = 4 if len(some_places) >= 4 else len(some_places)
+            places_text = ", ".join(map(str, some_places[:num_of_some_places]))
+            item_text = f"{text} \n {places_text}"
+            item = QTableWidgetItem(item_text)
             item.setFont(self.font)
             item.setTextAlignment(Qt.AlignCenter)
             item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
@@ -94,13 +99,11 @@ class MainWindow(QMainWindow):
         self.table_schedule.setHorizontalHeaderLabels(CLASSES_LIST)
 
 
-        self.table_schedule.setStyleSheet("""
-            QTableWidget::item {
-                border: 1px solid black;  
-            }
-        """)
-
-        
+        # self.table_schedule.setStyleSheet("""
+        #     QTableWidget::item {
+        #         border: 1px solid black;  
+        #     }
+        # """)
 
         self.set_lessons_main_table()
         self.table_schedule.cellClicked.connect(self.on_cell_clicked_table_schedule)
@@ -218,6 +221,14 @@ class MainWindow(QMainWindow):
                         item = QTableWidgetItem(f"{subject}\n{teacher}\n{place}")
                 else:
                     item = QTableWidgetItem()
+                if len(data[class_lessons].keys()) != 0:
+                    if data[class_lessons].get(row):
+                        if data[class_lessons][row]['type'] == "change":
+                            item.setBackground(QBrush(QColor(255, 255, 153)))
+                            item.setForeground(QBrush(QColor(0, 0, 0)))
+                        if data[class_lessons][row]['type'] == "error":
+                            item.setBackground(QBrush(Qt.black))
+                            item.setForeground(QBrush(QColor(0, 0, 0)))
                 item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
                 item.setTextAlignment(Qt.AlignCenter)
                 self.table_schedule.setItem(row, col, item)
@@ -230,9 +241,7 @@ class MainWindow(QMainWindow):
                 background-color: #1F6467; 
                 color: #FFFFFF;            
             }
-            QTableWidget::item {
-                border: 1px solid black; 
-            }
+
         """)
 
         self.settings_of_lesson(row, column)
@@ -248,10 +257,8 @@ class MainWindow(QMainWindow):
             self.existing_data_about_lesson = {'group_lesson': False, 'places': "", 'teacher': '', 'title_lesson': ''}
 
         # наши новые данные
-        self.new_updating_data = self.existing_data_about_lesson
+        self.new_updating_data = dict(self.existing_data_about_lesson)
         self.our_subgr_exist = 0
-
-        print(self.new_updating_data)
 
         self.setting_of_lesson_dialog = QDialog(self)
         self.setting_of_lesson_dialog.setWindowTitle("Действия")
@@ -359,7 +366,7 @@ class MainWindow(QMainWindow):
                 color: #000000;
             }
         """)
-        self.list_for_lesson.currentIndexChanged.connect(self.lists_on_lesson_selected)
+        self.list_for_lesson.currentIndexChanged.connect(lambda: self.lists_on_lesson_selected(row))
 
         layout_for_lists_subj.addWidget(label_for_lesson)
         layout_for_lists_subj.addWidget(self.list_for_lesson)
@@ -376,6 +383,8 @@ class MainWindow(QMainWindow):
             if self.new_updating_data['type'] in ["default", "change"]:
                 if not self.new_updating_data['group_lesson']: # не групповой урок
                     self.list_for_teacher.addItems(self.teachers_of_current_subject(self.new_updating_data['title_lesson']))
+                else:
+                    self.list_for_teacher.addItems(TEACHERS)
 
 
         self.list_for_teacher.setFixedWidth(200)
@@ -402,7 +411,15 @@ class MainWindow(QMainWindow):
         label_for_rooms.setStyleSheet("font-size: 18px; color: #FFFFFF;")
         self.list_for_rooms = QComboBox()
         self.list_for_rooms.addItem(str(self.new_updating_data["places"]))
-        self.list_for_rooms.addItems(self.free_places_for_num_lesson(self.current_date, row))
+
+        if 'type' in self.new_updating_data.keys():
+            if self.new_updating_data['type'] in ["default", "change"]:
+                if not self.new_updating_data['group_lesson']: # не групповой урок
+                    self.list_for_rooms.addItems(self.places_of_current_subject(self.new_updating_data['title_lesson'], row))
+                else:
+                    self.list_for_teacher.addItems(PLACES)
+
+        # self.list_for_rooms.addItems(self.free_places_for_num_lesson(self.current_date, row))
         self.list_for_rooms.setFixedWidth(200)
         self.list_for_rooms.setFixedHeight(40)
         self.list_for_rooms.setStyleSheet("""
@@ -512,21 +529,23 @@ class MainWindow(QMainWindow):
         main_layout = QVBoxLayout()
         main_layout.addWidget(container_widget, alignment=Qt.AlignTop | Qt.AlignCenter)
 
-        print(self.new_updating_data)
-        print(len(TEACHERS))
-        print(len(SUBJECTS_LIST))
         self.setting_of_lesson_dialog.setLayout(main_layout)
         self.setting_of_lesson_dialog.exec_()
-
-    def teachers_of_current_subject(self, subjet):
-        print(SUBJECTS_AND_TEACHERS[subjet])
-        return SUBJECTS_AND_TEACHERS[subjet]
-
-
+        
 
     def free_places_for_num_lesson(self, date, num_lesson):
-        print(f"{date} {num_lesson}")
+        print(f"{date} {num_lesson} its from here")
         return list(map(str, PLACES))
+
+    def teachers_of_current_subject(self, subjet):
+        return SUBJECTS_AND_TEACHERS[subjet]
+    
+    def places_of_current_subject(self, subjet, num_lesson):
+        free_places = self.free_places_for_num_lesson(self.current_date, num_lesson)
+        places_for_the_lesson = SUBJECTS_AND_PLACES[subjet]
+        return list(set(free_places) & set(places_for_the_lesson))
+
+
 
     def update_button_color_and_info(self):
         self.radio_yes.setStyleSheet(self.radio_style_not_checked)
@@ -622,9 +641,17 @@ class MainWindow(QMainWindow):
         self.list_for_subgr.setCurrentIndex(self.list_for_subgr.count() - 1)
 
     # список функция для обрабки того что выбрано в комбо боксах
-    def lists_on_lesson_selected(self):
+    def lists_on_lesson_selected(self, row):
         if "num_subgroups" not in self.new_updating_data:
             self.new_updating_data["title_lesson"] = self.list_for_lesson.currentText()
+            if not self.new_updating_data.get('type'):
+                self.list_for_teacher.clear()
+                self.list_for_teacher.addItem("")
+                self.list_for_teacher.addItems(self.teachers_of_current_subject(self.new_updating_data['title_lesson']))
+
+                self.list_for_rooms.clear()
+                self.list_for_rooms.addItem("")
+                self.list_for_rooms.addItems(self.places_of_current_subject(self.new_updating_data['title_lesson'], row))
             # self.list_for_subgr_selected()
         else:
             self.new_updating_data[int(self.list_for_subgr.currentText())][
@@ -659,10 +686,13 @@ class MainWindow(QMainWindow):
     def delete_button_clicked(self, row, column):
         self.setting_of_lesson_dialog.close()
         del self.existing_data_about_lesson
-        if self.new_updating_data.get("type") == "default":
-            DefaultScheduleDeleteLessonById(self.new_updating_data["id"])
-        elif self.new_updating_data.get("type") == "change":
-            ChangeInScheduleDeleteById(self.new_updating_data["id"])
+        if not self.new_updating_data.get("group_lesson"):
+            if self.new_updating_data.get("type") == "default":
+                DefaultScheduleDeleteLessonById(self.new_updating_data["id"])
+            elif self.new_updating_data.get("type") == "change":
+                ChangeInScheduleDeleteById(self.new_updating_data["id"])
+        else:
+            print(self.new_updating_data)
         del self.new_updating_data
         self.our_subgr_exist = 0
         self.set_lessons_main_table()
@@ -674,16 +704,19 @@ class MainWindow(QMainWindow):
         class_id = ClassGetIdByName(CLASSES_LIST[column])
         self.setting_of_lesson_dialog.close()
         if self.new_updating_data != self.existing_data_about_lesson:
-            if self.new_updating_data["type"] == "default":
-                ChangeInScheduleAdd(row + 1, TeacherGetIdByName(self.new_updating_data["teacher"]),
-                                         ClassRoomGetIdByName(self.new_updating_data["places"]), class_id,
-                                         SubjectGetIdByName(self.new_updating_data["title_lesson"]),
-                                        self.current_date_raw)
-            elif self.new_updating_data.get("type") == "change":
-                lesson = ChangeInScheduleChangeById(ChangeInScheduleGetByNumberClassDate(row + 1, class_id, self.current_date_raw),  row + 1, TeacherGetIdByName(self.new_updating_data["teacher"]),
-                                         ClassRoomGetIdByName(self.new_updating_data["places"]), class_id,
-                                         SubjectGetIdByName(self.new_updating_data["title_lesson"]),
-                                        self.current_date_raw)
+            if not self.new_updating_data.get("group_lesson"):
+                if self.new_updating_data.get("type") == "default" or not self.new_updating_data.get("type"):
+                    print(ChangeInScheduleAdd(row + 1, TeacherGetIdByName(self.new_updating_data["teacher"]),
+                                             ClassRoomGetIdByName(self.new_updating_data["places"]), class_id,
+                                             SubjectGetIdByName(self.new_updating_data["title_lesson"]),
+                                            self.current_date_raw, None, self.new_updating_data.get("id", None)))
+                elif self.new_updating_data.get("type") == "change":
+                    lesson = ChangeInScheduleChangeById(ChangeInScheduleGetByNumberClassDate(row + 1, class_id, self.current_date_raw),  row + 1, TeacherGetIdByName(self.new_updating_data["teacher"]),
+                                             ClassRoomGetIdByName(self.new_updating_data["places"]), class_id,
+                                             SubjectGetIdByName(self.new_updating_data["title_lesson"]))
+                    print(lesson)
+            else:
+                print(self.new_updating_data)
         print(self.new_updating_data)
         del self.new_updating_data
         del self.existing_data_about_lesson
@@ -739,7 +772,7 @@ class MainWindow(QMainWindow):
         free_rooms_label.setAlignment(Qt.AlignCenter)
         free_rooms_label.setStyleSheet("color: #FFFFFF;")
 
-        free_rooms_list = self.free_places_for_num_lesson(self.current_date, row+1)  # как то надо заполнить
+        free_rooms_list = self.free_places_for_num_lesson(self.current_date, row)  # как то надо заполнить
         grouped_rooms = [
             ", ".join(map(str, free_rooms_list[i:i + 5]))
             for i in range(0, len(free_rooms_list), 5)

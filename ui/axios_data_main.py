@@ -1,10 +1,16 @@
 from api.school_api import *
 
 LESSONS_NUM_TIME = [
-            "1\n8:00–8:45", "2\n8:55–9:40", "3\n9:55–10:40",
-            "4\n10:55–11:40", "5\n12:00–12:45", "6\n12:55–13:40",
-            "7\n13:50–14:35", "8\n14:45–15:30", "9\n15:40–16:25"
-        ]
+    "1) 8:00–8:45",  
+    "2) 8:55–9:40",  
+    "3) 9:55–10:40",
+    "4) 10:55–11:40",
+    "5) 12:00–12:45",
+    "6) 12:55–13:40",
+    "7) 13:50–14:35",
+    "8) 14:45–15:30",
+    "9) 15:40–16:25"
+]
 
 CLASSES_LIST = ClassGetAll()
 
@@ -22,10 +28,20 @@ SUBJECTS_LIST = SubjectGetAll()
 
 TEACHERS = TeacherGetAll()
 
+PLACES = ClassRoomGetAll()
+PLACES.append("")
+
 SUBJECTS_AND_TEACHERS = {
     SUBJECTS_LIST[key]:[
             TEACHERS[key % len(TEACHERS)],
             TEACHERS[(key + 1) % len(TEACHERS)]
+        ] for key in range(len(SUBJECTS_LIST))
+}
+
+SUBJECTS_AND_PLACES = {
+    SUBJECTS_LIST[key]:[
+            PLACES[key % len(PLACES)],
+            PLACES[(key + 1) % len(PLACES)]
         ] for key in range(len(SUBJECTS_LIST))
 }
 
@@ -35,8 +51,7 @@ SUBJECTS_AND_TEACHERS = {
 TEACHERS_LIST = TEACHERS # зачем??
 ROOMS_LIST = ["232", "233", "234", "235"] # зачем??
 
-PLACES = ClassRoomGetAll()
-PLACES.append("")
+
 
 
 LESSONS_TITLE_PLACE_TEACHER_CLASS = {

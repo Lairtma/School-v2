@@ -519,7 +519,7 @@ def ChangesInScheduleGetLessonByDate(date_lesson: date) -> list:
 
 
 def ChangeInScheduleAdd(number_of_lesson: int, teacher_id: int, classroom_id: int, class_id: int, subject_id: int,
-                        lesson_date: date, mini_group, id_in_default: int) -> int:
+                        lesson_date: date, mini_group, id_in_default) -> int:
     if (
             not number_of_lesson or not teacher_id or not classroom_id or not class_id or not subject_id or not lesson_date):
         return -1
