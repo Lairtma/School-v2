@@ -189,6 +189,8 @@ def TeacherGetAll() -> list:
         connection.close()
 
 def ClassRoomGetById(id: int) -> list:
+    if id == None:
+        return [0, 0, "неопределено"]
     connection = sqlite3.connect(path_to_db)
     cursor = connection.cursor()
     cursor.execute("SELECT * FROM room WHERE id = ?", (id,))

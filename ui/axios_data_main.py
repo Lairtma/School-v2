@@ -28,34 +28,3 @@ ROOMS_LIST = ["232", "233", "234", "235"]
 PLACES = ClassRoomGetAll()
 PLACES.append("")
 
-
-LESSONS_TITLE_PLACE_TEACHER_CLASS = {
-    WEEK_DAYS[1]: # день недели
-    {
-        CLASSES_LIST[0]: # класс
-        { 
-            1: # номер урока
-                {
-                "group_lesson" : False,
-                "title_lesson" : SUBJECTS_LIST[0],
-                "teacher" : TEACHERS[0],
-                "places" : ""
-                },
-            2: 
-                {
-                    "group_lesson" : True,
-                    "num_subgroups" : 2,
-                    1: {
-                        "title_lesson" : SUBJECTS_LIST[1],
-                        "teacher" : TEACHERS[1],
-                        "places" : PLACES[0]
-                    },
-                    2: {
-                        "title_lesson" : SUBJECTS_LIST[2],
-                        "teacher" : TEACHERS[2],
-                        "places" : PLACES[1]
-                    },
-                }
-        }
-    },
-}
