@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVB
 from PyQt5 import QtCore, uic
 from PyQt5.QtGui import QIcon, QPixmap, QTransform, QFont
 from PyQt5.QtCore import Qt
-from ui.axios_data_main import *
+from axios_data_main import *
 from datetime import datetime, timedelta, date
 from api.school_api import PrepareInformationForMainPage
 
@@ -191,6 +191,14 @@ class MainWindow(QMainWindow):
                                                                            "teacher"] is not None else ""
                         place = data[class_lessons][row]["places"] if data[class_lessons][row]["places"] is not None else ""
                         item = QTableWidgetItem(f"{subject}\n{teacher}\n{place}")
+                        if data[class_lessons][row]["type"] == "change":
+                            self.table_schedule.setCurrentCell(row, col)
+                            self.table_schedule.setStyleSheet("""
+                                        QTableWidget::item:selected {
+                                            background-color: #FF6467;
+                                        }
+                                    """)
+
                 else:
                     item = QTableWidgetItem()
                 item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
@@ -222,7 +230,7 @@ class MainWindow(QMainWindow):
             self.existing_data_about_lesson = {'group_lesson': False, 'places': "", 'teacher': '', 'title_lesson': ''}
 
         # наши новые данные
-        self.new_updating_data = self.existing_data_about_lesson
+        self.new_updating_data = dict(self.existing_data_about_lesson)
         self.our_subgr_exist = 0
 
         self.setting_of_lesson_dialog = QDialog(self)
@@ -596,10 +604,13 @@ class MainWindow(QMainWindow):
     def delete_button_clicked(self):
         self.setting_of_lesson_dialog.close()
         del self.existing_data_about_lesson
-        if self.new_updating_data.get("type") == "default":
-            DefaultScheduleDeleteLessonById(self.new_updating_data["id"])
-        elif self.new_updating_data.get("type") == "change":
-            ChangeInScheduleDeleteById(self.new_updating_data["id"])
+        if not self.new_updating_data.get("group_lesson"):
+            if self.new_updating_data.get("type") == "default":
+                DefaultScheduleDeleteLessonById(self.new_updating_data["id"])
+            elif self.new_updating_data.get("type") == "change":
+                ChangeInScheduleDeleteById(self.new_updating_data["id"])
+        else:
+            print(self.new_updating_data)
         del self.new_updating_data
         self.our_subgr_exist = 0
         self.set_lessons_main_table()
@@ -608,17 +619,19 @@ class MainWindow(QMainWindow):
         class_id = ClassGetIdByName(CLASSES_LIST[column])
         self.setting_of_lesson_dialog.close()
         if self.new_updating_data != self.existing_data_about_lesson:
-            if self.new_updating_data["type"] == "general":
-                ChangeInScheduleAdd(row + 1, TeacherGetIdByName(self.new_updating_data["teacher"]),
-                                         ClassRoomGetIdByName(self.new_updating_data["places"]), class_id,
-                                         SubjectGetIdByName(self.new_updating_data["title_lesson"]),
-                                        self.current_date_raw)
-            elif self.new_updating_data.get("type") == "change":
-                lesson = ChangeInScheduleChangeById(ChangeInScheduleGetByNumberClassDate(row + 1, class_id, self.current_date_raw),  row + 1, TeacherGetIdByName(self.new_updating_data["teacher"]),
-                                         ClassRoomGetIdByName(self.new_updating_data["places"]), class_id,
-                                         SubjectGetIdByName(self.new_updating_data["title_lesson"]),
-                                        self.current_date_raw)
-
+            if not self.new_updating_data.get("group_lesson"):
+                if self.new_updating_data.get("type") == "default":
+                    print(ChangeInScheduleAdd(row + 1, TeacherGetIdByName(self.new_updating_data["teacher"]),
+                                             ClassRoomGetIdByName(self.new_updating_data["places"]), class_id,
+                                             SubjectGetIdByName(self.new_updating_data["title_lesson"]),
+                                            self.current_date_raw, None, self.new_updating_data["id"]))
+                elif self.new_updating_data.get("type") == "change":
+                    lesson = ChangeInScheduleChangeById(ChangeInScheduleGetByNumberClassDate(row + 1, class_id, self.current_date_raw),  row + 1, TeacherGetIdByName(self.new_updating_data["teacher"]),
+                                             ClassRoomGetIdByName(self.new_updating_data["places"]), class_id,
+                                             SubjectGetIdByName(self.new_updating_data["title_lesson"]))
+                    print(lesson)
+            else:
+                print(self.new_updating_data)
         del self.new_updating_data
         del self.existing_data_about_lesson
         self.our_subgr_exist = 0
@@ -627,12 +640,15 @@ class MainWindow(QMainWindow):
 
     def save_for_schedule_button_clicked(self, row, column):
         class_id = ClassGetIdByName(CLASSES_LIST[column])
-        if self.new_updating_data.get("id"):
-            if self.new_updating_data["type"] == "change":
-                ChangeInScheduleDeleteById(self.new_updating_data["id"])
-            DefaultScheduleChangeLessonById(DefaultScheduleGetByWeekdayNumberClass(self.current_day_of_week + 1, row + 1, class_id), self.current_day_of_week + 1, row + 1, TeacherGetIdByName(self.new_updating_data["teacher"]), ClassRoomGetIdByName(self.new_updating_data["places"]), class_id, SubjectGetIdByName(self.new_updating_data["title_lesson"]))
+        if not self.new_updating_data.get("group_lesson"):
+            if self.new_updating_data.get("id"):
+                if self.new_updating_data["type"] == "change":
+                    ChangeInScheduleDeleteById(self.new_updating_data["id"])
+                DefaultScheduleChangeLessonById(DefaultScheduleGetByWeekdayNumberClass(self.current_day_of_week + 1, row + 1, class_id), self.current_day_of_week + 1, row + 1, TeacherGetIdByName(self.new_updating_data["teacher"]), ClassRoomGetIdByName(self.new_updating_data["places"]), class_id, SubjectGetIdByName(self.new_updating_data["title_lesson"]))
+            else:
+                DefaultScheduleAddLesson(self.current_day_of_week + 1, row + 1, TeacherGetIdByName(self.new_updating_data["teacher"]), ClassRoomGetIdByName(self.new_updating_data["places"]), class_id, SubjectGetIdByName(self.new_updating_data["title_lesson"]))
         else:
-            DefaultScheduleAddLesson(self.current_day_of_week + 1, row + 1, TeacherGetIdByName(self.new_updating_data["teacher"]), ClassRoomGetIdByName(self.new_updating_data["places"]), class_id, SubjectGetIdByName(self.new_updating_data["title_lesson"]))
+            print(self.new_updating_data)
         print(column, row)
         self.set_lessons_main_table()
         self.update()
