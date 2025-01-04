@@ -14,12 +14,14 @@ class MainWindow(QMainWindow):
         super(MainWindow, self).__init__()
         uic.loadUi("assets/mainWindow.ui", self)
 
-        self.setWindowTitle("School Schedule for Konstantin")
+        self.setWindowTitle("Школьное расписание")
+
+        self.setStyleSheet("background-color: white;")
+
         central_widget = QWidget(self)
         self.setCentralWidget(central_widget)
 
         self.current_date_raw = datetime.now()
-        print(self.current_date_raw)
         self.update_date_text()
         #!!! - так обозначаются все новые правки
 
@@ -57,6 +59,12 @@ class MainWindow(QMainWindow):
 
         central_widget.setLayout(v_layout)
 
+        # кнопка вызова вспомогательного меню
+
+        # кнопка вызова таблиц феди
+        
+
+
         # настройка таблицы номера урока и времени его проведения
 
         self.table_lessons_time = QTableWidget(self)
@@ -86,6 +94,9 @@ class MainWindow(QMainWindow):
             item.setFont(self.font)
             item.setTextAlignment(Qt.AlignCenter)
             item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+
+            item.setForeground(QBrush(QColor(0, 0, 0)))
+
             self.table_lessons_time.setItem(row, 0, item)
 
         self.table_lessons_time.cellClicked.connect(self.on_cell_clicked)
@@ -97,6 +108,14 @@ class MainWindow(QMainWindow):
         self.table_schedule.setFrameStyle(QTableWidget.NoFrame)
         self.table_schedule.verticalHeader().setVisible(False)
         self.table_schedule.setHorizontalHeaderLabels(CLASSES_LIST)
+
+        self.table_schedule.horizontalHeader().setStyleSheet("""
+            QHeaderView::section {
+                background-color: white;
+                color: black;
+                border: 1px solid black;
+            }
+        """)
 
 
         # self.table_schedule.setStyleSheet("""
@@ -118,13 +137,15 @@ class MainWindow(QMainWindow):
 
         self.date_label.setStyleSheet("""
             QLineEdit {
-                background-color: #1F6467; 
-                color: #FFFFFF;           
+                background-color: white; 
+                color: black;           
                 font-size: 16px;          
+                border: 2px solid black;  /* Черная обводка толщиной 2 пикселя */
                 border-radius: 10px;  
                 font-weight: bold;      
             }
         """)
+
 
     # день недели дата.расположние и таблицы номеров уроков
 
@@ -227,10 +248,11 @@ class MainWindow(QMainWindow):
                             item.setBackground(QBrush(QColor(255, 255, 153)))
                             item.setForeground(QBrush(QColor(0, 0, 0)))
                         if data[class_lessons][row]['type'] == "error":
-                            item.setBackground(QBrush(Qt.black))
+                            item.setBackground(QBrush(Qt.red))
                             item.setForeground(QBrush(QColor(0, 0, 0)))
                 item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
                 item.setTextAlignment(Qt.AlignCenter)
+                item.setForeground(QBrush(QColor(0, 0, 0)))
                 self.table_schedule.setItem(row, col, item)
         self.resizeEvent_manual() 
 
@@ -263,26 +285,26 @@ class MainWindow(QMainWindow):
         self.setting_of_lesson_dialog = QDialog(self)
         self.setting_of_lesson_dialog.setWindowTitle("Действия")
         self.setting_of_lesson_dialog.resize(400, 600)
-        self.setting_of_lesson_dialog.setStyleSheet("background-color: #1F6467; border-radius: 10px;")
+        self.setting_of_lesson_dialog.setStyleSheet("background-color: white; border-radius: 10px;")
 
         label_class_name = QLabel(self.setting_of_lesson_dialog)
-        label_class_name.setStyleSheet("color: #FFFFFF;")
+        label_class_name.setStyleSheet("color: black;")
         label_class_name.setText(f"{CLASSES_LIST[column]}")
         label_class_name.setFont(QFont("Times New Roman", 18))
 
         label_class_date = QLabel(self.setting_of_lesson_dialog)
-        label_class_date.setStyleSheet("color: #FFFFFF;")
+        label_class_date.setStyleSheet("color: black;")
         label_class_date.setText(f"{WEEK_DAYS[self.current_day_of_week]} {self.current_date}")
         label_class_date.setFont(QFont("Times New Roman", 18))
 
         label_class_num = QLabel(self.setting_of_lesson_dialog)
-        label_class_num.setStyleSheet("color: #FFFFFF;")
+        label_class_num.setStyleSheet("color: black;")
         label_class_num.setText(f"Урок {row + 1}")
         label_class_num.setFont(QFont("Times New Roman", 18))
 
         # создание радио бокса по группам
         label_is_group = QLabel("По группам")
-        label_is_group.setStyleSheet("font-size: 18px; color: #FFFFFF;")
+        label_is_group.setStyleSheet("font-size: 18px; color: black;")
         label_is_group.setAlignment(Qt.AlignCenter)
 
         self.radio_yes = QRadioButton("Да")
@@ -291,7 +313,7 @@ class MainWindow(QMainWindow):
         self.radio_style_checked = ("""
             QRadioButton {
                 font-size: 18px;
-                color: #FFFFFF;
+                color: black;
             }
             QRadioButton::indicator {
                 width: 20px;
@@ -311,7 +333,7 @@ class MainWindow(QMainWindow):
         self.radio_style_not_checked = ("""
             QRadioButton {
                 font-size: 18px;
-                color: #FFFFFF;
+                color: black;
             }
             QRadioButton::indicator {
                 width: 20px;
@@ -352,7 +374,7 @@ class MainWindow(QMainWindow):
 
         layout_for_lists_subj = QHBoxLayout()
         label_for_lesson = QLabel("Урок: ")
-        label_for_lesson.setStyleSheet("font-size: 18px; color: #FFFFFF;")
+        label_for_lesson.setStyleSheet("font-size: 18px; color: black;")
         self.list_for_lesson = QComboBox()
         self.list_for_lesson.addItem(self.new_updating_data["title_lesson"])
         self.list_for_lesson.addItems(SUBJECTS_LIST)
@@ -363,7 +385,11 @@ class MainWindow(QMainWindow):
                 background-color: #DCDCDC;
                 font-size: 16px;
                 border-radius: 5px;
-                color: #000000;
+                color: black;
+            }
+            QComboBox QAbstractItemView {
+                background-color: white;  
+                color: black;             
             }
         """)
         self.list_for_lesson.currentIndexChanged.connect(lambda: self.lists_on_lesson_selected(row))
@@ -375,7 +401,7 @@ class MainWindow(QMainWindow):
 
         layout_for_lists_teachers = QHBoxLayout()
         label_for_teacher = QLabel("Учитель: ")
-        label_for_teacher.setStyleSheet("font-size: 18px; color: #FFFFFF;")
+        label_for_teacher.setStyleSheet("font-size: 18px; color: black;")
         self.list_for_teacher = QComboBox()
         self.list_for_teacher.addItem(self.new_updating_data["teacher"])
 
@@ -393,9 +419,12 @@ class MainWindow(QMainWindow):
             QComboBox {
                 background-color: #DCDCDC;
                 font-size: 16px;
-                border: none; /* Убираем обводку */
                 border-radius: 5px;
-                color: #000000;
+                color: black;
+            }
+            QComboBox QAbstractItemView {
+                background-color: white;  
+                color: black;             
             }
         """)
 
@@ -408,7 +437,7 @@ class MainWindow(QMainWindow):
 
         layout_for_lists_rooms = QHBoxLayout()
         label_for_rooms = QLabel("Кабинет: ")
-        label_for_rooms.setStyleSheet("font-size: 18px; color: #FFFFFF;")
+        label_for_rooms.setStyleSheet("font-size: 18px; color: black;")
         self.list_for_rooms = QComboBox()
         self.list_for_rooms.addItem(str(self.new_updating_data["places"]))
 
@@ -427,7 +456,11 @@ class MainWindow(QMainWindow):
                 background-color: #DCDCDC;
                 font-size: 16px;
                 border-radius: 5px;
-                color: #000000;
+                color: black;
+            }
+            QComboBox QAbstractItemView {
+                background-color: white;  
+                color: black;             
             }
         """)
 
@@ -518,7 +551,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(delete_button)
         layout.addWidget(delete_button_for_all)
         layout.addWidget(save_button)
-        layout.addWidget(save_schedule_button)
+        # layout.addWidget(save_schedule_button)
         layout.setSizeConstraint(QLayout.SetFixedSize)
         container_widget = QWidget()
         container_widget.setFixedSize(350, 400)
@@ -583,7 +616,7 @@ class MainWindow(QMainWindow):
             self.our_subgr_exist = 1
             self.layout_for_lists_subgr = QHBoxLayout()
             label_for_subgr = QLabel("Подгруппа: ")
-            label_for_subgr.setStyleSheet("font-size: 18px; color: #FFFFFF;")
+            label_for_subgr.setStyleSheet("font-size: 18px; color: black;")
             self.list_for_subgr = QComboBox()
             self.list_for_subgr.addItems([str(x + 1) for x in range(self.new_updating_data["num_subgroups"])])
             self.list_for_subgr.addItem("+")
@@ -596,7 +629,11 @@ class MainWindow(QMainWindow):
                     background-color: #DCDCDC;
                     font-size: 16px;
                     border-radius: 5px;
-                    color: #000000;
+                    color: black;
+                }
+                QComboBox QAbstractItemView {
+                    background-color: white;  
+                    color: black;             
                 }
             """)
 
@@ -759,18 +796,18 @@ class MainWindow(QMainWindow):
         self.free_places_dialog = QDialog(self)
         self.free_places_dialog.setWindowTitle("Свободные кабинеты")
         self.free_places_dialog.resize(300, 200)
-        self.free_places_dialog.setStyleSheet("background-color: #1F6467; border-radius: 10px;")
+        self.free_places_dialog.setStyleSheet("background-color: white; border-radius: 10px;")
 
         label_date_of_free_places = QLabel(self.free_places_dialog)
         label_date_of_free_places.setAlignment(Qt.AlignCenter)
-        label_date_of_free_places.setStyleSheet("color: #FFFFFF;")
+        label_date_of_free_places.setStyleSheet("color: black;")
         label_date_of_free_places.setText(
             f"Дата: {WEEK_DAYS[self.current_day_of_week]} {self.current_date}\n Урок: {num_lesson}")
         label_date_of_free_places.setFont(QFont("Times New Roman", 18))
 
         free_rooms_label = QLabel(self.free_places_dialog)
         free_rooms_label.setAlignment(Qt.AlignCenter)
-        free_rooms_label.setStyleSheet("color: #FFFFFF;")
+        free_rooms_label.setStyleSheet("color: black;")
 
         free_rooms_list = self.free_places_for_num_lesson(self.current_date, row)  # как то надо заполнить
         grouped_rooms = [
