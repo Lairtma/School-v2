@@ -22,7 +22,8 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
 
         self.current_date_raw = datetime.now()
-        self.update_date_text()
+        self.current_date = self.current_date_raw.strftime("%d.%m.%Y")
+        # self.update_date_text()
         #!!! - так обозначаются все новые правки
 
         # настройка меню бара
@@ -129,22 +130,39 @@ class MainWindow(QMainWindow):
 
         # день недели дата
 
-        self.date_label = QLineEdit(self)
-        self.date_label.setText(self.date_text)
-        self.date_label.setReadOnly(True)
+        self.date_label = QComboBox(self)
         self.date_label.setFixedWidth(250)
-        self.date_label.setAlignment(Qt.AlignCenter)
+        self.date_label.addItems(WORK_DAYS_FIRST_PART)
 
         self.date_label.setStyleSheet("""
-            QLineEdit {
-                background-color: white; 
-                color: black;           
-                font-size: 16px;          
-                border: 2px solid black;  /* Черная обводка толщиной 2 пикселя */
-                border-radius: 10px;  
-                font-weight: bold;      
+            QComboBox {
+                background-color: white;  /* Задний фон белый */
+                color: black;             /* Цвет текста черный */
+                font-size: 16px;          /* Размер шрифта */
+                border: 2px solid black;  /* Черная обводка */
+                border-radius: 5px;       /* Скругленные углы */
+            }
+            QComboBox QAbstractItemView {
+                background-color: white;  /* Задний фон выпадающего списка белый */
+                color: black;             /* Цвет текста черный */
+                border: 1px solid black;  /* Черная обводка вокруг выпадающего списка */
             }
         """)
+
+        self.date_label.currentIndexChanged.connect(self.on_date_changed)
+
+        self.update_date_text()
+
+
+    def on_date_changed(self, index):
+        # print(WORK_DAYS_FIRST_PART[index].split()) #['Суббота', '11.01.2025']
+        day_of_week, date_str = WORK_DAYS_FIRST_PART[index].split()
+    
+        self.current_date_raw = datetime.strptime(date_str, "%d.%m.%Y")
+
+        if hasattr(self, 'table_schedule'):
+            self.set_lessons_main_table()
+
 
 
     # день недели дата.расположние и таблицы номеров уроков
@@ -205,8 +223,24 @@ class MainWindow(QMainWindow):
         self.current_date = self.current_date_raw.strftime("%d.%m.%Y")
         self.current_day_of_week = self.current_date_raw.weekday()
         self.date_text = f"{WEEK_DAYS[self.current_day_of_week]} {self.current_date}"
-        if hasattr(self, 'date_label'):
-            self.date_label.setText(self.date_text)
+        print(self.date_text) #Понедельник 06.01.2025
+
+        attempts = 0
+        while attempts < 3:
+            index = self.date_label.findText(self.date_text, flags=Qt.MatchExactly)
+            if index != -1:  
+                self.date_label.setCurrentIndex(index)
+                break
+            else:  
+                self.current_date_raw += timedelta(days=1)
+                self.current_date = self.current_date_raw.strftime("%d.%m.%Y")
+                self.current_day_of_week = self.current_date_raw.weekday()
+                self.date_text = f"{WEEK_DAYS[self.current_day_of_week]} {self.current_date}"
+                attempts += 1
+
+        if attempts == 3:
+            self.date_label.setCurrentIndex(0)
+
         if hasattr(self, 'table_schedule'):
             self.set_lessons_main_table()
 

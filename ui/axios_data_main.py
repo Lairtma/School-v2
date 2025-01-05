@@ -1,4 +1,5 @@
 from api.school_api import *
+from datetime import datetime, timedelta
 
 LESSONS_NUM_TIME = [
     "1) 8:00–8:45",  
@@ -12,8 +13,6 @@ LESSONS_NUM_TIME = [
     "9) 15:40–16:25"
 ]
 
-CLASSES_LIST = ClassGetAll()
-
 WEEK_DAYS = [
             "Понедельник",
             "Вторник",
@@ -23,6 +22,31 @@ WEEK_DAYS = [
             "Суббота",
             "Воскресенье"
         ]
+
+"""ЧТ 9.01.2025, СБ 11.01.2025, ПН 13.01.2025...ВС 1.06.2025"""
+
+current_year = datetime.now().year
+
+start_date = datetime(current_year, 1, 1) 
+end_date = datetime(current_year, 5, 31)
+
+WORK_DAYS_FIRST_PART = []
+current_date = start_date
+
+while current_date <= end_date:
+    day_of_week_index = current_date.weekday()  
+    if day_of_week_index != 6: 
+        day_of_week = WEEK_DAYS[day_of_week_index]
+        formatted_date = current_date.strftime("%d.%m.%Y") 
+        WORK_DAYS_FIRST_PART.append(f"{day_of_week} {formatted_date}")
+    current_date += timedelta(days=1)
+
+
+
+
+
+
+CLASSES_LIST = ClassGetAll()
 
 SUBJECTS_LIST = SubjectGetAll()
 
