@@ -1,6 +1,5 @@
 import xml.etree.ElementTree as ET
 import sqlite3
-import numpy as np
 
 
 
@@ -11,8 +10,7 @@ def export_from_xml(db_name, xml_name):
         cursor = connection.cursor()
 
         tables = [
-            "teacher_and_discipline", "teacher_and_room", 
-            "default_schedule", "changes_in_schedule"
+            "default_schedule"
         ]
 
         for table in tables:
@@ -47,8 +45,6 @@ def export_from_xml(db_name, xml_name):
                 current_id = result[0]
                 all_subject_ids[xml_id] = current_id
 
-
-
         # Учителя
 
         all_teacher_ids = {}
@@ -61,15 +57,13 @@ def export_from_xml(db_name, xml_name):
             fio = elem.get("name")
             cursor.execute("SELECT id FROM teacher WHERE fio = ?", (fio,))
             result = cursor.fetchone()
-            if result in None:
+            if result is None:
                 cursor.execute("INSERT INTO teacher (fio) VALUES (?)", (fio,))
                 all_teacher_ids[xml_id] = teacher_id
                 teacher_id += 1
             else:
                 current_id = result[0]
                 all_teacher_ids[xml_id] = current_id
-
-
 
         # Аудитории
 
@@ -118,29 +112,14 @@ def export_from_xml(db_name, xml_name):
                 current_id = result[0]
                 all_class_ids[xml_id] = current_id
 
-
-
         # Группы
 
         all_group_ids = {}
-        cursor.execute("SELECT MAX(id) FROM group")
-        max_group_id = cursor.fetchone()[0] or 0
-        group_id = max_group_id + 1
 
         for elem in root.findall("./groups/group"):
             xml_id = elem.get("id")
             name = elem.get("name")
-            cursor.execute("SELECT id FROM group WHERE name = ?", (name,))
-            result = cursor.fetchone()
-            if result is None:
-                cursor.execute("INSERT INTO group (id, name) VALUES (?, ?)", (group_id, name))
-                all_group_ids[xml_id] = group_id
-                group_id += 1
-            else:
-                current_id = result[0]
-                all_group_ids[xml_id] = current_id
-
-
+            all_group_ids[xml_id] = name
 
         # Уроки
 
@@ -164,8 +143,6 @@ def export_from_xml(db_name, xml_name):
                 discipline_classes_map[subject_id].update(classids)
 
 
-
-
         # Карточки расписания
         for card in root.findall("./cards/card"):
             lessonid = card.get("lessonid")
@@ -174,33 +151,118 @@ def export_from_xml(db_name, xml_name):
             if not lesson_data:
                 continue
 
-            weekday_binary = card.get("days")  # Например: "10000" для понедельника
-            weekday = weekday_binary.find("1") + 1  # Конвертация в номер дня (1 = Понедельник)
-
+            weekday_binary = card.get("days")
+            weekday = weekday_binary.find("1") + 1
             if weekday == 0:
                 continue
 
-            period = int(card.get("period"))  # Номер урока
-            classroomids = [all_classroom_ids.get(cid) for cid in card.get("classroomids", "").split(",") if cid]
+            period = int(card.get("period"))
 
-            # Вставка записей для каждой комбинации учителя, класса, группы и аудитории
-            for teacher in lesson_data["teacherids"]:
-                for cls in lesson_data["classids"]:
-                    for grp in lesson_data["groupids"]:
-                        for room in classroomids or [None]:  # Если аудитории нет, вставляем None
-                            cursor.execute("""
-                                INSERT INTO default_schedule (
-                                    weekday, number_of_lesson, all_teacher_ids, room_id, class_id, mini_group, discipline_id
-                                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            teacher_ids = lesson_data["teacherids"]
+            group_ids = lesson_data["groupids"]
+            class_ids = lesson_data["classids"]
+
+            
+            if not teacher_ids or not group_ids or not class_ids:                                                                       # Проверяем, что списки не пустые
+                print(f"Ошибка: один из списков пуст (учителя, группы или классы) для урока {lessonid}")
+                continue
+            if len(class_ids) == 1 and len(group_ids) == 1 and len(teacher_ids) == 1:
+                cls = class_ids[0]
+                grs = group_ids[0]
+                trs = teacher_ids[0]
+                cursor.execute("""
+                            INSERT INTO default_schedule (
+                                weekday, number_of_lesson, teacher_id, room_id, class_id, mini_group, discipline_id
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?)
                             """, (
-                                weekday,
-                                period,
-                                teacher,
-                                room,
-                                cls,
-                                grp,
-                                lesson_data["subjectid"]
-                            ))
+                            weekday,
+                            period,
+                            trs,  
+                            None,  
+                            cls,
+                            grs,  
+                            lesson_data["subjectid"]
+                        ))
+            elif len(class_ids) == 1 and len(group_ids) == 1 and len(teacher_ids) > 1:
+                # if group_ids[0] != 'Весь класс': print(lessonid)
+                subgroups = [f"{i + 1} группа" for i in range(len(teacher_ids))]
+                cls = class_ids[0]
+                for i in range(len(teacher_ids)):
+                    cursor.execute("""
+                        INSERT INTO default_schedule (
+                            weekday, number_of_lesson, teacher_id, room_id, class_id, mini_group, discipline_id
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """, (
+                        weekday,
+                        period,
+                        teacher_ids[i],  
+                        None,  
+                        cls,
+                        subgroups[i],  
+                        lesson_data["subjectid"]
+                    ))
+            elif len(class_ids) == len(group_ids) and len(teacher_ids) == 1:
+                trs = teacher_ids[0]
+                for i in range(len(class_ids)):
+                    cls = class_ids[i]
+                    cursor.execute("""
+                        INSERT INTO default_schedule (
+                            weekday, number_of_lesson, teacher_id, room_id, class_id, mini_group, discipline_id
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """, (
+                        weekday,
+                        period,
+                        trs, 
+                        None,  
+                        cls,
+                        group_ids[i],  
+                        lesson_data["subjectid"]
+                    ))
+            elif len(class_ids) == len(group_ids) and  len(teacher_ids) > 1:
+                subgroups = [f"{i + 1} группа" for i in range(len(teacher_ids))]
+                for i in range(len(class_ids)):
+                    cls = class_ids[i]
+                    for j in range(len(teacher_ids)):
+                        trs = teacher_ids[j]
+                        cursor.execute("""
+                        INSERT INTO default_schedule (
+                            weekday, number_of_lesson, teacher_id, room_id, class_id, mini_group, discipline_id
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """, (
+                        weekday,
+                        period,
+                        trs, 
+                        None,  
+                        cls,
+                        subgroups[j],  
+                        lesson_data["subjectid"]
+                    ))
+            else:
+                # Обработка случая, если длины class_ids и group_ids не совпадают
+                if len(class_ids) == 1 and len(class_ids) < len(group_ids):
+                    for i in range(len(group_ids)):
+                        cls = class_ids[0]
+                        grs = group_ids[i]
+                        teacher_id = teacher_ids[0] if teacher_ids else None  #там всегда 1 учитель
+                        cursor.execute("""
+                            INSERT INTO default_schedule (
+                                weekday, number_of_lesson, teacher_id, room_id, class_id, mini_group, discipline_id
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """, (
+                            weekday,
+                            period,
+                            teacher_id,
+                            None,  # Аудитория, если не указана, записывается как NULL
+                            cls,
+                            grs,
+                            lesson_data["subjectid"]
+                        ))
+                    # Повторяем классы для соответствия количеству групп
+                elif len(class_ids) > len(group_ids):
+                    print(f"Ошибка: длины классов ({len(class_ids)}) и групп ({len(group_ids)}) не совпадают для урока {lessonid}")
+                    continue
+                else:
+                    print(lessonid)
         # Обновление таблицы discipline с классами
         for discipline_id, class_grades_set in discipline_classes_map.items():
             # Преобразуем множество классов в строку, разделённую запятыми
