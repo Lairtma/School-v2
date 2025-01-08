@@ -1,9 +1,9 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QTableWidgetItem, \
-    QTableWidget, QLineEdit, QLabel, QDialog, QComboBox, QRadioButton, QLayout, QPushButton, QScrollArea
+    QTableWidget, QLineEdit, QLabel, QDialog, QComboBox, QRadioButton, QLayout, QPushButton, QDateEdit
 from PyQt5 import QtCore, uic
 from PyQt5.QtGui import QIcon, QPixmap, QTransform, QFont, QBrush, QColor
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QDate
 from ui.axios_data_main import *
 from datetime import datetime, timedelta, date
 from api.school_api import PrepareInformationForMainPage
@@ -23,6 +23,7 @@ class MainWindow(QMainWindow):
 
         self.current_date_raw = datetime.now()
         self.current_date = self.current_date_raw.strftime("%d.%m.%Y")
+        self.current_day_of_week = self.current_date_raw.weekday()
         # self.update_date_text()
         #!!! - так обозначаются все новые правки
 
@@ -129,39 +130,55 @@ class MainWindow(QMainWindow):
         self.table_schedule.cellClicked.connect(self.on_cell_clicked_table_schedule)
 
         # день недели дата
-
-        self.date_label = QComboBox(self)
-        self.date_label.setFixedWidth(250)
-        self.date_label.addItems(WORK_DAYS_FIRST_PART)
-
+        self.date_label = QDateEdit(self)
+        self.date_label.setCalendarPopup(True)  # Включаем выпадающий календарь
+        self.date_label.setDate(QDate.currentDate())  # Устанавливаем текущую дату
+        self.date_label.setDisplayFormat("dd.MM.yyyy")
         self.date_label.setStyleSheet("""
-            QComboBox {
-                background-color: white;  /* Задний фон белый */
-                color: black;             /* Цвет текста черный */
-                font-size: 16px;          /* Размер шрифта */
-                border: 2px solid black;  /* Черная обводка */
-                border-radius: 5px;       /* Скругленные углы */
+            QDateEdit {
+                background-color: white;
+                color: black;
+                border: 2px solid black;
+                border-radius: 5px;
+                font-size: 16px;
+                padding: 5px;
             }
-            QComboBox QAbstractItemView {
-                background-color: white;  /* Задний фон выпадающего списка белый */
-                color: black;             /* Цвет текста черный */
-                border: 1px solid black;  /* Черная обводка вокруг выпадающего списка */
+            QCalendarWidget QAbstractItemView {
+                background-color: white;
+                color: black;
+            }
+            QCalendarWidget QToolButton {
+                background-color: white;
+                color: black;
+                font-size: 14px;
+            }
+            QCalendarWidget QSpinBox {
+                font-size: 14px;
+                color: black;
+            }
+            QCalendarWidget QTableView {
+                border: 1px solid black;
+                font-size: 12px;
+            }
+            QCalendarWidget QHeaderView::section {
+                background-color: white;
+                color: black;
             }
         """)
 
-        self.date_label.currentIndexChanged.connect(self.on_date_changed)
 
-        self.update_date_text()
+        self.date_label.dateChanged.connect(self.on_date_changed)
 
+    def on_date_changed(self, date):
 
-    def on_date_changed(self, index):
-        # print(WORK_DAYS_FIRST_PART[index].split()) #['Суббота', '11.01.2025']
-        day_of_week, date_str = WORK_DAYS_FIRST_PART[index].split()
-    
-        self.current_date_raw = datetime.strptime(date_str, "%d.%m.%Y")
+        # print(f"Дата: {date.toString('dd.MM.yyyy')}")
+        self.current_date_raw = datetime.combine(date.toPyDate(), datetime.min.time())
+        self.current_day_of_week = self.current_date_raw.weekday()
+        self.current_date = self.current_date_raw.strftime("%d.%m.%Y")
 
         if hasattr(self, 'table_schedule'):
             self.set_lessons_main_table()
+
 
 
 
@@ -171,7 +188,7 @@ class MainWindow(QMainWindow):
         super(MainWindow, self).resizeEvent(event)
         x_position = (self.width() - self.date_label.width()) // 2
         y_position = self.height() - self.date_label.height() - 5
-        self.date_label.move(x_position, y_position)
+        self.date_label.setGeometry(x_position, y_position, 150, 30)
 
         row_height = self.height() // 11 if self.height() // 11 < 90 else 90
         y_position = 30
@@ -220,39 +237,22 @@ class MainWindow(QMainWindow):
 
     # функции для кнопок следующий - предыдущий
     def update_date_text(self):
-        self.current_date = self.current_date_raw.strftime("%d.%m.%Y")
+        self.date_label.setDate(self.current_date_raw.date())
         self.current_day_of_week = self.current_date_raw.weekday()
-        self.date_text = f"{WEEK_DAYS[self.current_day_of_week]} {self.current_date}"
-        print(self.date_text) #Понедельник 06.01.2025
-
-        attempts = 0
-        while attempts < 3:
-            index = self.date_label.findText(self.date_text, flags=Qt.MatchExactly)
-            if index != -1:  
-                self.date_label.setCurrentIndex(index)
-                break
-            else:  
-                self.current_date_raw += timedelta(days=1)
-                self.current_date = self.current_date_raw.strftime("%d.%m.%Y")
-                self.current_day_of_week = self.current_date_raw.weekday()
-                self.date_text = f"{WEEK_DAYS[self.current_day_of_week]} {self.current_date}"
-                attempts += 1
-
-        if attempts == 3:
-            self.date_label.setCurrentIndex(0)
+        self.current_date = self.current_date_raw.strftime("%d.%m.%Y")
 
         if hasattr(self, 'table_schedule'):
             self.set_lessons_main_table()
 
     def next_day_button_clicked(self):
-        if self.current_day_of_week == 4:
-            self.current_date_raw += timedelta(days=2)
+        # if self.current_day_of_week == 5:
+        #     self.current_date_raw += timedelta(days=2)
         self.current_date_raw += timedelta(days=1)
         self.update_date_text()
 
     def previous_day_button_clicked(self):
-        if self.current_day_of_week == 0:
-            self.current_date_raw -= timedelta(days=2)
+        # if self.current_day_of_week == 0:
+        #     self.current_date_raw -= timedelta(days=2)
         self.current_date_raw -= timedelta(days=1)
         self.update_date_text()
 
@@ -267,6 +267,7 @@ class MainWindow(QMainWindow):
                     is_group_lesson = data[class_lessons][row]["group_lesson"]  # должен быть row а не 1
                     if is_group_lesson:
                         item = QTableWidgetItem(f"Групповое")
+
                     else:
                         subject = data[class_lessons][row]["title_lesson"] if data[class_lessons][row][
                                                                                 "title_lesson"] is not None else ""
@@ -315,6 +316,7 @@ class MainWindow(QMainWindow):
         # наши новые данные
         self.new_updating_data = dict(self.existing_data_about_lesson)
         self.our_subgr_exist = 0
+
 
         self.setting_of_lesson_dialog = QDialog(self)
         self.setting_of_lesson_dialog.setWindowTitle("Действия")
@@ -426,6 +428,7 @@ class MainWindow(QMainWindow):
                 color: black;             
             }
         """)
+
         self.list_for_lesson.currentIndexChanged.connect(lambda: self.lists_on_lesson_selected(row))
 
         layout_for_lists_subj.addWidget(label_for_lesson)
@@ -440,8 +443,9 @@ class MainWindow(QMainWindow):
         self.list_for_teacher.addItem(self.new_updating_data["teacher"])
 
         if 'type' in self.new_updating_data.keys():
+            print(self.new_updating_data, "fffffffff")
             if self.new_updating_data['type'] in ["default", "change"]:
-                if not self.new_updating_data['group_lesson']: # не групповой урок
+                if not self.new_updating_data['group_lesson']: 
                     self.list_for_teacher.addItems(self.teachers_of_current_subject(self.new_updating_data['title_lesson']))
                 else:
                     self.list_for_teacher.addItems(TEACHERS)
@@ -601,7 +605,7 @@ class MainWindow(QMainWindow):
         
 
     def free_places_for_num_lesson(self, date, num_lesson):
-        print(f"{date} {num_lesson} its from here")
+        # print(f"{date} {num_lesson} its from here")
         return list(map(str, PLACES))
 
     def teachers_of_current_subject(self, subjet):
@@ -636,6 +640,8 @@ class MainWindow(QMainWindow):
                     "places": self.list_for_rooms.currentText()
                 }
 
+
+
             if self.our_subgr_exist == 0:
                 self.add_layout_subgr()
 
@@ -644,6 +650,15 @@ class MainWindow(QMainWindow):
             self.new_updating_data["group_lesson"] = False
             if "num_subgroups" in self.new_updating_data: del self.new_updating_data["num_subgroups"]
             self.add_layout_subgr()
+
+    def new_data_lists(self):
+        self.list_for_teacher.clear()
+        if 'type' in self.new_updating_data.keys():
+            if self.new_updating_data['type'] in ["default", "change"]:
+                if not self.new_updating_data['group_lesson']: 
+                    self.list_for_teacher.addItems(self.teachers_of_current_subject(self.new_updating_data['title_lesson']))
+                else:
+                    self.list_for_teacher.addItems(TEACHERS)
 
     def add_layout_subgr(self):
         if self.new_updating_data["group_lesson"]:
@@ -677,7 +692,6 @@ class MainWindow(QMainWindow):
             self.layout_for_lists_subgr.addWidget(self.list_for_subgr)
             self.layout_v_for_lists.insertLayout(0, self.layout_for_lists_subgr)
             self.list_for_subgr_selected()
-
         else:
             if hasattr(self,
                        "layout_for_lists_subgr") and self.layout_for_lists_subgr is not None and self.our_subgr_exist == 1:
@@ -693,6 +707,7 @@ class MainWindow(QMainWindow):
                 self.layout_for_lists_subgr = None
 
                 self.our_subgr_exist = 0
+    
 
     # добавление подгруппы по нажатию на +
     def on_subgroup_item_selected(self, combo_box, index):
@@ -727,6 +742,18 @@ class MainWindow(QMainWindow):
         else:
             self.new_updating_data[int(self.list_for_subgr.currentText())][
                 "title_lesson"] = self.list_for_lesson.currentText()
+
+            if self.new_updating_data[int(self.list_for_subgr.currentText())][
+                "title_lesson"]:
+                self.list_for_teacher.clear()
+                self.list_for_teacher.addItem("")
+                self.list_for_teacher.addItems(self.teachers_of_current_subject(self.new_updating_data[int(self.list_for_subgr.currentText())]['title_lesson']))
+
+                self.list_for_rooms.clear()
+                self.list_for_rooms.addItem("")
+                self.list_for_rooms.addItems(self.places_of_current_subject(self.new_updating_data[int(self.list_for_subgr.currentText())]['title_lesson'], row))
+
+            print(self.new_updating_data)
 
     def list_for_teacher_selected(self):
         if "num_subgroups" not in self.new_updating_data:
